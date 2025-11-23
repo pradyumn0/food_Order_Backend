@@ -16,7 +16,7 @@ export interface VandorLoginInput{
 }
 
 export interface VandorPayload {
-  _id:string;
+  _id:string | number;
   email:string;
   name:string;
   foodType: [string];
