@@ -3,7 +3,7 @@ import { CreateVandorInput } from "../dto";
 import Vandor from "../models/Vandor";
 import { GeneratePassword, GenerateSalt } from "../utility";
 
-export const FindVandor= async (id:string|undefined,email?:string|undefined)=>{
+export const FindVandor= async (id:string|number,email?:string|undefined)=>{
   if(id){
     return await Vandor.findById(id)
   } else if(email){
