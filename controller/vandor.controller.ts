@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { EditVandorInputs, VandorLoginInput } from "../dto";
 import { FindVandor } from "./admin.controller";
 import { GenerateSignature, ValidatePassword } from "../utility";
+import { CreateFoodInputs } from "../dto/Food.dto";
+import { Food } from "../models/Foods";
 // import { VandorPayload } from "../dto/Vandor.dto";
 
 export const VandorLogin = async (
@@ -76,6 +78,32 @@ export const UpdateVandorProfile = async (
   return res.json({ message: "User not found" });
 };
 
+export const UpdateVandorCoverImage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const user = req.user;
+  if (user) {
+    const vandor = await FindVandor(user._id);
+    if (vandor !== null) {
+      const files = req.files as [Express.Multer.File];
+
+      const images = files.map((file: Express.Multer.File) => file.filename);
+
+      // vandor.foods.push(createFood)
+      vandor.coverImages.push(...images);
+      // vandor.coverImage
+
+      const result = await vandor.save();
+
+      return res.json(result);
+    }
+  }
+
+  return res.json({ message: "Something went wrong with add Foods " });
+};
+
 export const UpdateVandorService = async (
   req: Request,
   res: Response,
@@ -83,7 +111,6 @@ export const UpdateVandorService = async (
 ) => {
   // Implementation for updating vendor service availability
 
-  
   const user = req.user;
   if (user) {
     const existingVandor = await FindVandor(user._id);
@@ -92,29 +119,63 @@ export const UpdateVandorService = async (
       const saveResult = await existingVandor.save();
       return res.json(saveResult);
     }
-    
+
     return res.json(existingVandor);
   }
   return res.json({ message: "User not found" });
 };
 
+export const AddFood = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const user = req.user;
+  if (user) {
+    const { name, description, category, foodType, readyTime, price } = <
+      CreateFoodInputs
+    >req.body;
 
-export const AddFood = async (req:Request,res:Response,next:NextFunction)=>{
-  const user = req.user
-  if(user){
-    
+    const vandor = await FindVandor(user._id);
+    if (vandor !== null) {
+      const files = req.files as [Express.Multer.File];
+
+      const images = files.map((file: Express.Multer.File) => file.filename);
+      const createFood = await Food.create({
+        vandorId: vandor._id,
+        name,
+        description,
+        category,
+        foodType,
+        images,
+        readyTime,
+        price,
+        rating: 0,
+      });
+
+      vandor.foods.push(createFood);
+      const result = await vandor.save();
+
+      return res.json(result);
+    }
   }
 
-  return res.json({"message":"Something went wrong with add Foods "})
-}
+  return res.json({ message: "Something went wrong with add Foods " });
+};
 
-export const GetFoods = async (req:Request,res:Response,next:NextFunction)=>{
-  const user = req.user
-  if(user){
+export const GetFoods = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const user = req.user;
+  if (user) {
+    const foods = await Food.find({ vandorId: user._id });
 
+    if (foods !== null) {
+      return res.json(foods);
+    }
   }
 
-  
-  return res.json({"message":"Food Information not found "})
-}
-
+  return res.json({ message: "Food Information not found " });
+};

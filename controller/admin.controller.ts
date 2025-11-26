@@ -49,7 +49,8 @@ const userpassword = await GeneratePassword(password,salt)
     phone,
     rating: 0,
     serviceAvailable: false,
-    coverImage: [],
+    coverImages: [],
+    foods: []
   });
 
   return res.json( CreateVandor);

@@ -3,11 +3,14 @@ import { VendorRoute,AdminRoute } from "./routes";
 import bodyParser from 'body-parser'
 import mongoose from "mongoose";
 import { MONGO_URI } from "./config";
+import path from 'path'
+
 
 const app = Express()
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
+app.use('/images', Express.static(path.join(__dirname,'images')))
 
 app.use('/admin', AdminRoute)
 app.use('/vandor',VendorRoute)

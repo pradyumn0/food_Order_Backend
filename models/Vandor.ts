@@ -11,7 +11,7 @@
     password: string;
     serviceAvailable:boolean;
     salt:string;
-    coverImage:string;
+    coverImages:[string];
     rating:number;
     foods:any
   }
@@ -27,7 +27,7 @@
     email:{type:String,required:true,unique:true},
     password:{type:String,required:true},
     serviceAvailable:{type:Boolean,default:false},
-    coverImage:{type:String},
+    coverImages:{type:String},
     rating:{type:Number,default:0},
     foods:[{type:mongoose.Schema.Types.ObjectId,ref:"Food"}]
   },{
