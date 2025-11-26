@@ -97,3 +97,24 @@ export const UpdateVandorService = async (
   }
   return res.json({ message: "User not found" });
 };
+
+
+export const AddFood = async (req:Request,res:Response,next:NextFunction)=>{
+  const user = req.user
+  if(user){
+    
+  }
+
+  return res.json({"message":"Something went wrong with add Foods "})
+}
+
+export const GetFoods = async (req:Request,res:Response,next:NextFunction)=>{
+  const user = req.user
+  if(user){
+
+  }
+
+  
+  return res.json({"message":"Food Information not found "})
+}
+
