@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-interface FoodDoc extends mongoose.Document {
+export interface FoodDoc extends mongoose.Document {
   vandorId: string;
   name: string;
   description: string;
