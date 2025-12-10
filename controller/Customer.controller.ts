@@ -6,9 +6,10 @@ import { CreateFoodInputs } from "../dto/Food.dto";
 import { Food, FoodDoc } from "../models/Foods";
 import Vandor from "../models/Vandor";
 import { plainToClass } from "class-transformer";
-import { CreateCustomerInput } from "../dto/Customer.dto";
+import { CreateCustomerInput, EditCustomerProfileInputs, UserLoginInputs } from "../dto/Customer.dto";
 import { validate, ValidationError } from "class-validator";
 import Customer from "../models/Customer";
+import { verify } from "jsonwebtoken";
 // import { VandorPayload } from "../dto/Vandor.dto";
 
 export const CustomerSignup = async (
@@ -31,6 +32,11 @@ export const CustomerSignup = async (
 
  const { otp,expiry} = GenerateOtp()
  
+const existCustomer = Customer.findOne({ email: email })
+
+if(existCustomer !== null){
+  return res.status(409).json({message:" An user exist with the provided email"})
+}
 
  const result = await Customer.create({
   email: email,
@@ -46,8 +52,15 @@ export const CustomerSignup = async (
 
  if(result){
   await onRequestOTP(otp,phone)
-  // const signature =await GenerateSignature()
- }
+  const signature =await GenerateSignature({ 
+   _id: result._id,
+       email:result.email,
+    verified: result.verified
+  })
+
+ return res.status(201).json({signature: signature, verified:result.verified,email: result.email})
+}
+return res.status(400).json({message:"Error with Signup"})
 };
 
 
@@ -57,16 +70,39 @@ export const CustomerLogin = async (
   next: NextFunction
 ) => {
   // Implementation for getting vendor profile
-  const  pincode  = req.params.pincode;
-  const result = await Vandor.find({pincode: pincode, serviceAvailable:false}).sort([['rating','descending']]).limit(10)
+const loginInputs = plainToClass( UserLoginInputs ,req.body)
 
-  if(result.length >0){
-   return res.status(200).json(result)
+const loginErrors = await validate(loginInputs, {validationError:{target: false}})
+
+if(loginErrors.length > 0){
+  return res.status(400).json(loginErrors)
+}
+
+const {email,password} = loginInputs
+
+const customer = await Customer.findOne({email: email})
+
+if(customer){
+  const validation = await ValidatePassword(password,customer.password,customer.salt);
+  if(validation){
+    
+ const signature =await GenerateSignature({ 
+   _id: customer._id,
+       email:customer.email,
+    verified: customer.verified
+  })
+
+ return res.status(201).json({signature: signature, verified:customer.verified,email: customer.email})
+
+
   }
-
-return res.status(400).json({message:"No Data Found!"})
+}else{
+   
+}
+return res.status(404).json({message:"login Error "})
 
 };
+
 
 export const CustomerVerify = async (
   req: Request,
@@ -74,54 +110,105 @@ export const CustomerVerify = async (
   next: NextFunction
 ) => {
   // Implementation for updating vendor profile
-  const  pincode  = req.params.pincode;
-  const result = await Vandor.find({pincode: pincode, serviceAvailable:false}).populate("foods")
+  const {otp} = req.body
 
-  if(result.length >0){
-    let foodResult: any =[]
-    result.map(vandor =>{
-      const foods = vandor.foods as [FoodDoc]
-      foodResult.push(...foods.filter(food=> food.readyTime <= 30))
-    })
-   return res.status(200).json(foodResult)
+  const customer = req.user;
+if(customer){
+  const profile = await Customer.findById(customer._id)
+
+if(profile){
+  if(profile.otp === parseInt(otp) && profile.otp_expiry >= new Date()){
+profile.verified = true;
+const updatedCustomerResponse = await profile.save();
+
+
+const signature =await GenerateSignature({ 
+   _id: updatedCustomerResponse._id,
+       email:updatedCustomerResponse.email,
+    verified: updatedCustomerResponse.verified
+  })
+
+  return res.status(201).json({
+    signature: signature,
+    verified: updatedCustomerResponse.verified,
+    email: updatedCustomerResponse.email
+  })
   }
+}
+}
 
-return res.status(400).json({message:"No Data Found!"})
+return res.status(400).json({message:"Error with OTP Validation"})
 
 };
 
-export const SearchFoods = async (
+export const RequestOtp = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-   const  pincode  = req.params.pincode;
-  const result = await Vandor.find({pincode: pincode, serviceAvailable:false}).populate("foods")
+ const customer = req.user
 
-  if(result.length >0){
-     let foodResult: any =[]
-    result.map(item =>foodResult.push(...item.foods))
+ if(customer){
+  const profile = await Customer.findById(customer._id)
 
-   return res.status(200).json(foodResult)
+  if(profile){
+    const {otp,expiry}= GenerateOtp()
+    profile.otp = otp
+    profile.otp_expiry = expiry
+
+    await profile.save()
+    await onRequestOTP(otp,profile.phone)
+
+    res.status(200).json({message: "OTP sent your registered phone number"})
   }
+ }
 
-return res.status(400).json({message:"No Data Found!"})
+return res.status(400).json({message:"Error with Request OTP"})
 
 };
 
-export const RestaurantById = async (
+export const GetCustomerProfile = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   // Implementation for updating vendor service availability
-  const  id  = req.params.id;
-  const result = await Vandor.findById(id).populate("foods")
+  const customer = req.user;
 
-  if(result){
-   return res.status(200).json(result)
+  if(customer){
+  const profile = await Customer.findById(customer._id)
+
+  if(profile){
+   
+   return res.status(200).json(profile)
   }
+ 
+  return res.status(400).json({message:"Error with Fetch Profile"})
+ }
 
-return res.status(400).json({message:"No Data Found!"})
+};
+export const EditCustomerProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  // Implementation for updating vendor service availability
+   const customer = req.user;
+  const profileInputs = plainToClass(EditCustomerProfileInputs,req.body)
 
+  const profileErrors = await validate(profileInputs,{validationError:{target: false}})
+
+  const {firstName, lastName, address} = profileInputs
+  if(customer){
+  const profile = await Customer.findById(customer._id)
+
+  if(profile){
+    profile.firstName =  firstName
+    profile.lastName = lastName
+    profile.address = address
+   
+   const result =  await profile.save()
+    res.status(200).json(result)
+  }
+ }
 };
