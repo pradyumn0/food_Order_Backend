@@ -38,3 +38,10 @@ export class EditCustomerProfileInputs{
   @Length(3,16)
 address: string;
 }
+
+
+export class OrderInputs{
+  _id: string;
+
+  unit: number;
+}
